@@ -100,7 +100,7 @@
             height: 100%;
         }
 
-        /* 커스텀 오버레이(말풍선) 스타일 */
+        /* 장소 커스텀 오버레이(말풍선) 스타일 */
         .custom-overlay {
             position: relative;
             bottom: 50px; /* 마커 이미지 위에 안착하도록 위치 조정 */
@@ -149,6 +149,33 @@
             border-left: 6px solid transparent;
             border-right: 6px solid transparent;
         }
+
+        /* 내 현재 위치 커스텀 오버레이 스타일 */
+        .current-location-box {
+            background-color: #ff4d4d;
+            color: #fff;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+            position: relative;
+            bottom: 45px; /* 빨간 동그라미 위에 띄우기 위해 조정 */
+            white-space: nowrap;
+            text-align: center;
+        }
+        .current-location-box:after {
+            content: '';
+            position: absolute;
+            margin-left: -5px;
+            left: 50%;
+            bottom: -5px;
+            width: 0;
+            height: 0;
+            border-top: 5px solid #ff4d4d;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+        }
     </style>
 </head>
 <body>
@@ -177,10 +204,10 @@
         let map; // 지도 인스턴스
         let placeSearchService; // 장소 검색 서비스 객체
         let markers = []; // 생성된 마커들을 담을 배열
-        let currentOverlay = null; // 현재 열려있는 커스텀 오버레이 객체
+        let currentOverlay = null; // 현재 열려있는 장소 커스텀 오버레이 객체
         let currentTab = 'CAFE'; // 현재 선택된 탭 ('CAFE' 또는 'STUDY')
 
-        // 다른 색상의 마커 이미지 URL 설정 (오픈소스 마커 이미지 활용)
+        // 다른 색상의 마커 이미지 URL 설정
         const yellowMarkerUrl = "https://t1.daumcdn.net/localimg/localimages/07/2012/img/marker_p.png"; // 카페용 노란색 계열 마커
         const greenMarkerUrl = "https://maps.google.com/mapfiles/ms/icons/green-dot.png"; // 스터디카페용 초록색 마커
 
@@ -205,7 +232,7 @@
             // 장소 검색 객체 생성
             placeSearchService = new kakao.maps.services.Places();
 
-            // 지도 클릭 시 열려있는 커스텀 오버레이 닫기
+            // 지도 클릭 시 열려있는 장소 커스텀 오버레이 닫기
             kakao.maps.event.addListener(map, 'click', function() {
                 if (currentOverlay) {
                     currentOverlay.setMap(null);
@@ -221,16 +248,29 @@
                     
                     map.setCenter(currentPosition);
                     
-                    // 현재 위치 마커 표시
-                    const currentMarker = new kakao.maps.Marker({
+                    // [변경 포인트 1] 현재 위치를 표시할 크고 진한 빨간색 동그라미 생성
+                    const currentCircle = new kakao.maps.Circle({
+                        center: currentPosition, // 원의 중심좌표
+                        radius: 12,              // 원의 반지름 (미터 단위, 크기 조정 가능)
+                        strokeWeight: 3,         // 선의 두께
+                        strokeColor: '#ffffff',  // 선의 색상 (흰색 테두리로 빨간 원을 더 돋보이게 함)
+                        strokeOpacity: 1,        // 선의 불투명도
+                        strokeStyle: 'solid',    // 선의 스타일
+                        fillColor: '#ff4d4d',    // 채우기 색상 (진한 빨간색)
+                        fillOpacity: 1           // 채우기 불투명도
+                    });
+                    currentCircle.setMap(map); // 지도에 원 그리기
+
+                    // [변경 포인트 2] 요청한 '지금 너는 여기!' 멘트를 깔끔한 디자인의 커스텀 오버레이로 표시
+                    const currentContent = document.createElement('div');
+                    currentContent.className = 'current-location-box';
+                    currentContent.innerHTML = '지금 너는 여기!';
+
+                    const currentOverlayMarker = new kakao.maps.CustomOverlay({
                         position: currentPosition,
+                        content: currentContent,
                         map: map
                     });
-                    
-                    const infoWindow = new kakao.maps.InfoWindow({
-                        content: '<div style="padding:5px;font-size:12px;text-align:center;">내 현재 위치</div>'
-                    });
-                    infoWindow.open(map, currentMarker);
 
                     // 지도 중심이 내 위치로 잡힌 후 자동으로 첫 검색 수행
                     fetchPlaces();
@@ -303,13 +343,13 @@
             for (let i = 0; i < places.length; i++) {
                 const placePosition = new kakao.maps.LatLng(places[i].y, places[i].x);
                 
-                // 1. 카테고리별 마커 이미지 다르게 설정
-                let markerImageUrl = yellowMarkerUrl; // 기본 노란색 마커 (카페)
-                let markerImageSize = new kakao.maps.Size(33, 36); // 카카오 마커 기본 크기 세팅
+                // 카테고리별 마커 이미지 다르게 설정
+                let markerImageUrl = yellowMarkerUrl; 
+                let markerImageSize = new kakao.maps.Size(33, 36); 
                 
                 if (currentTab === 'STUDY') {
-                    markerImageUrl = greenMarkerUrl; // 스터디카페는 초록색 마커
-                    markerImageSize = new kakao.maps.Size(32, 32); // 구글 마커 이미지 크기에 맞춤
+                    markerImageUrl = greenMarkerUrl; 
+                    markerImageSize = new kakao.maps.Size(32, 32); 
                 }
 
                 const markerImage = new kakao.maps.MarkerImage(markerImageUrl, markerImageSize);
@@ -322,10 +362,10 @@
                 });
                 markers.push(marker);
                 
-                // 2. 마커 클릭 시 나타날 커스텀 오버레이(말풍선) HTML 구조 정의
+                // 마커 클릭 시 나타날 커스텀 오버레이(말풍선) HTML 구조 정의
                 const placeName = places[i].place_name;
                 const placePhone = places[i].phone ? places[i].phone : '전화번호 정보 없음';
-                const placeUrl = places[i].place_url; // 카카오맵 상세페이지 링크
+                const placeUrl = places[i].place_url; 
 
                 const overlayContent = document.createElement('div');
                 overlayContent.className = 'custom-overlay';
@@ -344,14 +384,14 @@
                 // 마커 클릭 이벤트: 커스텀 오버레이 토글 기능
                 kakao.maps.event.addListener(marker, 'click', function() {
                     if (currentOverlay) {
-                        currentOverlay.setMap(null); // 기존에 열려있는 말풍선 닫기
+                        currentOverlay.setMap(null); 
                     }
-                    customOverlay.setMap(map); // 클릭한 마커 위에 말풍선 열기
+                    customOverlay.setMap(map); 
                     currentOverlay = customOverlay;
-                    map.panTo(placePosition); // 해당 마커 위치로 부드럽게 중심 이동
+                    map.panTo(placePosition); 
                 });
                 
-                // 3. 왼쪽 사이드바에 나타날 리스트 아이템 생성
+                // 왼쪽 사이드바에 나타날 리스트 아이템 생성
                 const resultItem = document.createElement('div');
                 resultItem.className = 'result-item';
                 resultItem.innerHTML = `
@@ -368,7 +408,7 @@
                     customOverlay.setMap(map);
                     currentOverlay = customOverlay;
                     map.setCenter(placePosition);
-                    map.setLevel(3); // 클릭하면 상세히 볼 수 있게 확대 레벨 조정
+                    map.setLevel(3); 
                 };
 
                 listContainer.appendChild(resultItem);
